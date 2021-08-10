@@ -34,6 +34,7 @@ option(HAVE_STRERROR_R "Use strerror_r()")
 option(HAVE_USLEEP "Use usleep() system call to implement the xSleep method")
 option(DISABLE_GETHOSTUUID "Disable function gethostuuid")
 set(MAX_BLOB_SIZE CACHE STRING "Set the maximum number of bytes in a string or BLOB")
+option(DISABLE_DEFAULT_VFS "Disable default VFS implementation")
 
 add_library(${PROJECT_NAME} source_subfolder/sqlite3.c)
 if (WIN32 AND MSVC AND BUILD_SHARED_LIBS)
@@ -112,6 +113,9 @@ target_compile_definitions(${PROJECT_NAME}  PRIVATE SQLITE_THREADSAFE=${THREADSA
 if(MAX_BLOB_SIZE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE SQLITE_MAX_LENGTH=${MAX_BLOB_SIZE})
 endif()
+if(DISABLE_DEFAULT_VFS)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE SQLITE_OS_OTHER=1)
+endif()
 
 if(THREADSAFE)
     find_package(Threads REQUIRED)
@@ -142,6 +146,11 @@ if(SQLITE3_BUILD_EXECUTABLE)
     add_executable(sqlite3-bin source_subfolder/shell.c)
     target_link_libraries(sqlite3-bin PRIVATE ${PROJECT_NAME})
     set_target_properties(sqlite3-bin PROPERTIES OUTPUT_NAME "sqlite3")
+    include(CheckSymbolExists)
+    check_symbol_exists(system "stdlib.h" HAVE_SYSTEM)
+    if(NOT HAVE_SYSTEM)
+        target_compile_definitions(sqlite3-bin PRIVATE SQLITE_NOHAVE_SYSTEM)
+    endif()
     install(TARGETS sqlite3-bin
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         BUNDLE DESTINATION ${CMAKE_INSTALL_BINDIR}
